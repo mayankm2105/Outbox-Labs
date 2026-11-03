@@ -18,19 +18,32 @@ let redisClient: Redis | null = null;
 export function getRedisClient(): Redis {
   if (redisClient) return redisClient;
 
-  redisClient = new Redis({
-    host: env.REDIS_HOST,
-    port: env.REDIS_PORT,
-    password: env.REDIS_PASSWORD || undefined,
-    maxRetriesPerRequest: null, // Required by BullMQ; safe for general use too
-    enableReadyCheck: true,
-    lazyConnect: false,
-    retryStrategy(times) {
-      const delay = Math.min(times * 100, 3000);
-      logger.warn({ attempt: times, delayMs: delay }, 'Redis reconnect attempt');
-      return delay;
-    },
-  });
+  if (env.REDIS_URL) {
+    redisClient = new Redis(env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: true,
+      lazyConnect: false,
+      retryStrategy(times) {
+        const delay = Math.min(times * 100, 3000);
+        logger.warn({ attempt: times, delayMs: delay }, 'Redis reconnect attempt');
+        return delay;
+      },
+    });
+  } else {
+    redisClient = new Redis({
+      host: env.REDIS_HOST,
+      port: env.REDIS_PORT,
+      password: env.REDIS_PASSWORD || undefined,
+      maxRetriesPerRequest: null, // Required by BullMQ; safe for general use too
+      enableReadyCheck: true,
+      lazyConnect: false,
+      retryStrategy(times) {
+        const delay = Math.min(times * 100, 3000);
+        logger.warn({ attempt: times, delayMs: delay }, 'Redis reconnect attempt');
+        return delay;
+      },
+    });
+  }
 
   redisClient.on('connect', () => {
     logger.info('Redis connected');
